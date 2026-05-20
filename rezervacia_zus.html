@@ -27,7 +27,8 @@ function loadSlots() {
   const container = document.getElementById("slots");
   container.innerHTML = "<div class='loading'>Aktualizujem dáta...</div>";
 
-  fetch(SCRIPT_URL)
+  // Pridaný parameter { redirect: "follow" }
+  fetch(SCRIPT_URL, { redirect: "follow" })
     .then(response => response.json())
     .then(data => renderSlots(data))
     .catch(err => {
@@ -35,7 +36,7 @@ function loadSlots() {
       console.error(err);
     });
 }
-
+  
 function renderSlots(data) {
   const container = document.getElementById("slots");
   container.innerHTML = "";
@@ -83,26 +84,25 @@ function renderSlots(data) {
           btn.disabled = true;
           btn.textContent = "Odosielam...";
 
-          // Posielanie dát na Google Apps Script cez POST požiadavku
-          fetch(SCRIPT_URL, {
-            method: "POST",
-            body: JSON.stringify({ time: slot.time, name: name, email: email })
-          })
-          .then(res => res.json())
-          .then(result => {
-            if (result.success) {
-              loadSlots();
-            } else {
-              alert(result.message);
-              loadSlots();
-            }
-          })
-          .catch(err => {
-            alert("Chyba spojenia so serverom.");
-            btn.disabled = false;
-            btn.textContent = "Uložiť";
-          });
-        };
+         // Posielanie dát na Google Apps Script upravené pre obídenie CORS
+fetch(SCRIPT_URL, {
+  method: "POST",
+  mode: "no-cors", // 🔒 Povie prehliadaču, aby nekontroloval CORS hlavičky
+  headers: {
+    "Content-Type": "text/plain" // Prehliadač to vníma ako bezpečný obyčajný text
+  },
+  body: JSON.stringify({ time: slot.time, name: name, email: email })
+})
+.then(() => {
+  // POZOR: Režim 'no-cors' nevracia aplikácii odpoveď (vráti prázdnotu), 
+  // preto nemôžeme čítať res.json(), ale rovno obnovíme sloty.
+  loadSlots();
+})
+.catch(err => {
+  alert("Chyba spojenia so serverom.");
+  btn.disabled = false;
+  btn.textContent = "Uložiť";
+});
 
         div.appendChild(title);
         div.appendChild(inputName);
