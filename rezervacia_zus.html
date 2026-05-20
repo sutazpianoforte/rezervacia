@@ -84,31 +84,31 @@ function renderSlots(data) {
           btn.disabled = true;
           btn.textContent = "Odosielam...";
 
-         // Posielanie dát na Google Apps Script upravené pre obídenie CORS
-fetch(SCRIPT_URL, {
-  method: "POST",
-  mode: "no-cors", // 🔒 Povie prehliadaču, aby nekontroloval CORS hlavičky
-  headers: {
-    "Content-Type": "text/plain" // Prehliadač to vníma ako bezpečný obyčajný text
-  },
-  body: JSON.stringify({ time: slot.time, name: name, email: email })
-})
-.then(() => {
-  // POZOR: Režim 'no-cors' nevracia aplikácii odpoveď (vráti prázdnotu), 
-  // preto nemôžeme čítať res.json(), ale rovno obnovíme sloty.
-  loadSlots();
-})
-.catch(err => {
-  alert("Chyba spojenia so serverom.");
-  btn.disabled = false;
-  btn.textContent = "Uložiť";
-});
+          // Posielanie dát na Google Apps Script upravené pre obídenie CORS
+          fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors", 
+            headers: {
+              "Content-Type": "text/plain"
+            },
+            body: JSON.stringify({ time: slot.time, name: name, email: email })
+          })
+          .then(() => {
+            loadSlots();
+          })
+          .catch(err => {
+            alert("Chyba spojenia so serverom.");
+            btn.disabled = false;
+            btn.textContent = "Uložiť";
+          });
+        }; // <-- Tu končí btn.onclick
 
+        // Prvky sa musia pridať do políčka (div) až PO definovaní tlačidla
         div.appendChild(title);
         div.appendChild(inputName);
         div.appendChild(inputEmail);
         div.appendChild(btn);
-      };
+      }; // <-- Tu končí div.onclick
     }
     container.appendChild(div);
   });
