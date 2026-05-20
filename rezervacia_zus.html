@@ -68,17 +68,27 @@ const API_URL =
 
 
 
-async function loadSlots(){
+async function loadSlots() {
+  const res = await fetch(API_URL + "?t=" + Date.now(), {
+    method: "GET",
+    mode: "cors"
+  });
 
- const res = await fetch(API_URL + "?t=" + Date.now(), {
-  method: "GET",
-  mode: "cors"
-});
+  const data = await res.json();
 
-  const data =
-    await res.json();
+  const table = document.getElementById("slots");
+  table.innerHTML = "";
 
-  buildGrid(data);
+  data.forEach(slot => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${slot.time}</td>
+      <td>${slot.name || '<button onclick="reserveSlot(\'' + slot.time + '\')">Rezervovať</button>'}</td>
+    `;
+
+    table.appendChild(row);
+  });
 }
 
 
@@ -157,46 +167,29 @@ function buildGrid(data){
 
 
 // rezervácia
-async function reserve(time){
+async function reserveSlot(time) {
+  const name = prompt("Zadajte meno:");
+  if (!name) return;
 
-  const name =
-    document.getElementById(
-      "name_" + time
-    ).value;
+  const email = prompt("Zadajte email:");
+  if (!email) return;
 
+  const res = await fetch(API_URL, {
+    method: "POST",
+    mode: "cors",
+    headers: {
+      "Content-Type": "text/plain"
+    },
+    body: JSON.stringify({
+      time: time,
+      name: name,
+      email: email
+    })
+  });
 
-  const email =
-    document.getElementById(
-      "email_" + time
-    ).value;
-
-
-  if(!name || !email){
-
-    alert("Vyplň údaje");
-    return;
-  }
-
-
-  cconst res = await fetch(API_URL, {
-  method: "POST",
-  mode: "cors",
-  headers: {
-    "Content-Type": "text/plain"
-  },
-  body: JSON.stringify({
-    time,
-    name,
-    email
-  })
-});
-
-
-  const result =
-    await res.json();
+  const result = await res.json();
 
   alert(result.message);
-
   loadSlots();
 }
 
