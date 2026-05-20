@@ -67,7 +67,7 @@ const API_URL =
 "https://script.google.com/macros/s/AKfycbyRz0UFyO_f3fHAoMkGqMqDVt43SuWSy-aOfmhm0vmUO56lJyBOEfRAOMFfSeQZmVcl/exec";
 
 
-
+// načítanie údajov
 async function loadSlots() {
   const res = await fetch(API_URL + "?t=" + Date.now(), {
     method: "GET",
@@ -76,27 +76,14 @@ async function loadSlots() {
 
   const data = await res.json();
 
-  const table = document.getElementById("slots");
-  table.innerHTML = "";
-
-  data.forEach(slot => {
-    const row = document.createElement("tr");
-
-    row.innerHTML = `
-      <td>${slot.time}</td>
-      <td>${slot.name || '<button onclick="reserveSlot(\'' + slot.time + '\')">Rezervovať</button>'}</td>
-    `;
-
-    table.appendChild(row);
-  });
+  buildGrid(data);
 }
 
 
-
+// vykreslenie tabuľky
 function buildGrid(data){
 
-  const table =
-    document.getElementById("grid");
+  const table = document.getElementById("grid");
 
   table.innerHTML = `
     <tr>
@@ -106,56 +93,37 @@ function buildGrid(data){
     </tr>
   `;
 
-
   data.forEach(slot => {
 
-    const tr =
-      document.createElement("tr");
-
+    const tr = document.createElement("tr");
 
     tr.innerHTML += `
       <td>${slot.time}</td>
     `;
 
-
     // obsadené
     if(slot.name){
 
       tr.innerHTML += `
-        <td class="taken">
-          Obsadené
-        </td>
-
-        <td class="taken">
-          ---
-        </td>
+        <td class="taken">Obsadené</td>
+        <td class="taken">---</td>
       `;
-
     }
 
     // voľné
     else{
 
       tr.innerHTML += `
-
         <td class="free">
-          <input
-            id="name_${slot.time}"
-            placeholder="Meno">
+          <input id="name_${slot.time}" placeholder="Meno">
         </td>
 
         <td class="free">
+          <input id="email_${slot.time}" placeholder="Email">
 
-          <input
-            id="email_${slot.time}"
-            placeholder="Email">
-
-          <button onclick="
-            reserve('${slot.time}')
-          ">
+          <button onclick="reserveSlot('${slot.time}')">
             Rezervovať
           </button>
-
         </td>
       `;
     }
@@ -165,14 +133,19 @@ function buildGrid(data){
 }
 
 
-
 // rezervácia
 async function reserveSlot(time) {
-  const name = prompt("Zadajte meno:");
-  if (!name) return;
 
-  const email = prompt("Zadajte email:");
-  if (!email) return;
+  const name =
+    document.getElementById(`name_${time}`).value;
+
+  const email =
+    document.getElementById(`email_${time}`).value;
+
+  if(!name || !email){
+    alert("Vyplňte meno aj email");
+    return;
+  }
 
   const res = await fetch(API_URL, {
     method: "POST",
@@ -190,6 +163,7 @@ async function reserveSlot(time) {
   const result = await res.json();
 
   alert(result.message);
+
   loadSlots();
 }
 
