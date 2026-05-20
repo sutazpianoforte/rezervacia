@@ -1,176 +1,122 @@
 <!DOCTYPE html>
 <html lang="sk">
 <head>
-
 <meta charset="UTF-8">
-
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
-
-<title>Rezervácia</title>
-
+<title>Rezervácia rozohrávok ZUŠ</title>
 <style>
-
-body{
-  font-family:Arial;
-  max-width:800px;
-  margin:auto;
-  padding:20px;
-}
-
-table{
-  border-collapse:collapse;
-  width:100%;
-}
-
-th,td{
-  border:1px solid #ccc;
-  padding:8px;
-  text-align:center;
-}
-
-th{
-  background:#f0f0f0;
-  position:sticky;
-  top:0;
-}
-
-input{
-  width:95%;
-  height:34px;
-}
-
-button{
-  margin-top:4px;
-  padding:6px 10px;
-}
-
-.free{
-  background:#eaffea;
-}
-
-.taken{
-  background:#ffdede;
-}
-
+  body { font-family: Arial; max-width: 400px; margin: auto; padding: 20px; }
+  input { width: 95%; height: 25px; font-size: 14px; padding: 5px; margin: 4px 0; box-sizing: border-box; }
+  button { margin-top: 5px; }
+  .slot { padding: 3px; margin: 3px 0; font-size: 13px; border: 1px solid #ccc; }
+  .slot.volne { background: #d4eaed; cursor: pointer; }
+  .slot.obsadene { background: #f8d7da; cursor: not-allowed; }
+  .loading { text-align: center; color: #666; font-style: italic; }
 </style>
 </head>
 <body>
 
-<h2>Rezervácia rozohrávok</h2>
+<h2>Rezervácia rozohrávok ZUŠ</h2>
 
-<table id="grid"></table>
+<div id="slots" class="loading">Načítavam voľné termíny...</div>
 
 <script>
+// 🔥 Vymeň túto URL za svoju URL adresu z Google Apps Scriptu (v úvodzovkách)
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyRz0UFyO_f3fHAoMkGqMqDVt43SuWSy-aOfmhm0vmUO56lJyBOEfRAOMFfSeQZmVcl/exec";
 
-const API_URL =
-"const API_URL =
-"https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnTaJ0fcGLR4Gz3H_N3fgHcDxxuy8hE8LEk_I72wKrfBhJfvp_NT-CDydIHA19Y2jvVetr_Z1RAw2LDSKZT2haaEmrvFIYlu1livyGYdk2a8SSomJ4iR3CI5KV4YX5LtdWb4U29BrlfdZlWmVCZjgbuJ4vRTnKpNQJp7pNavoyl3S6O5YijNFqwAculoNfWFC-H8FMxagNcoTu42YJLnPMG13GzBUFDTuWgTt1gBl6q25EK5gDY&lib=MxIZx2YsJIzJwrefRPKfPIUWzQRt5QScL";
+function loadSlots() {
+  const container = document.getElementById("slots");
+  container.innerHTML = "<div class='loading'>Aktualizujem dáta...</div>";
 
-
-// načítanie údajov
-async function loadSlots() {
-  const res = await fetch(API_URL + "?t=" + Date.now(), {
-    method: "GET",
-    mode: "cors"
-  });
-
-  const data = await res.json();
-
-  buildGrid(data);
+  fetch(SCRIPT_URL)
+    .then(response => response.json())
+    .then(data => renderSlots(data))
+    .catch(err => {
+      container.innerHTML = "Chyba pri načítaní dát.";
+      console.error(err);
+    });
 }
 
-
-// vykreslenie tabuľky
-function buildGrid(data){
-
-  const table = document.getElementById("grid");
-
-  table.innerHTML = `
-    <tr>
-      <th>Čas</th>
-      <th>Meno</th>
-      <th>Email</th>
-    </tr>
-  `;
+function renderSlots(data) {
+  const container = document.getElementById("slots");
+  container.innerHTML = "";
 
   data.forEach(slot => {
+    const div = document.createElement("div");
+    div.className = "slot " + (slot.status === "obsadené" ? "obsadene" : "volne");
 
-    const tr = document.createElement("tr");
+    if (slot.status === "obsadené") {
+      div.textContent = slot.time + " - obsadené";
+    } 
+    else {
+      div.textContent = slot.time;
 
-    tr.innerHTML += `
-      <td>${slot.time}</td>
-    `;
+      div.onclick = () => {
+        if (div.querySelector('input')) return; // prevencia duplicity
+        div.innerHTML = "";
 
-    // obsadené
-    if(slot.name){
+        const title = document.createElement("div");
+        title.textContent = slot.time;
 
-      tr.innerHTML += `
-        <td class="taken">Obsadené</td>
-        <td class="taken">---</td>
-      `;
+        const inputName = document.createElement("input");
+        inputName.placeholder = "Meno";
+
+        const inputEmail = document.createElement("input");
+        inputEmail.placeholder = "Email";
+
+        inputName.onclick = (e) => e.stopPropagation();
+        inputEmail.onclick = (e) => e.stopPropagation();
+
+        const btn = document.createElement("button");
+        btn.textContent = "Uložiť";
+
+        btn.onclick = (e) => {
+          e.stopPropagation();
+
+          const name = inputName.value.trim();
+          const email = inputEmail.value.trim();
+
+          if (!name || !email) {
+            alert("Vyplň meno aj email");
+            return;
+          }
+
+          btn.disabled = true;
+          btn.textContent = "Odosielam...";
+
+          // Posielanie dát na Google Apps Script cez POST požiadavku
+          fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ time: slot.time, name: name, email: email })
+          })
+          .then(res => res.json())
+          .then(result => {
+            if (result.success) {
+              loadSlots();
+            } else {
+              alert(result.message);
+              loadSlots();
+            }
+          })
+          .catch(err => {
+            alert("Chyba spojenia so serverom.");
+            btn.disabled = false;
+            btn.textContent = "Uložiť";
+          });
+        };
+
+        div.appendChild(title);
+        div.appendChild(inputName);
+        div.appendChild(inputEmail);
+        div.appendChild(btn);
+      };
     }
-
-    // voľné
-    else{
-
-      tr.innerHTML += `
-        <td class="free">
-          <input id="name_${slot.time}" placeholder="Meno">
-        </td>
-
-        <td class="free">
-          <input id="email_${slot.time}" placeholder="Email">
-
-          <button onclick="reserveSlot('${slot.time}')">
-            Rezervovať
-          </button>
-        </td>
-      `;
-    }
-
-    table.appendChild(tr);
+    container.appendChild(div);
   });
 }
 
-
-// rezervácia
-async function reserveSlot(time) {
-
-  const name =
-    document.getElementById(`name_${time}`).value;
-
-  const email =
-    document.getElementById(`email_${time}`).value;
-
-  if(!name || !email){
-    alert("Vyplňte meno aj email");
-    return;
-  }
-
-  const res = await fetch(API_URL, {
-    method: "POST",
-    mode: "cors",
-    headers: {
-      "Content-Type": "text/plain"
-    },
-    body: JSON.stringify({
-      time: time,
-      name: name,
-      email: email
-    })
-  });
-
-  const result = await res.json();
-
-  alert(result.message);
-
-  loadSlots();
-}
-
-
+// Načítanie pri štarte
 loadSlots();
-
 </script>
+
 </body>
 </html>
