@@ -21,7 +21,7 @@
 
 <script>
 // 🔥 Vymeň túto URL za svoju URL adresu z Google Apps Scriptu (v úvodzovkách)
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwW8Zb-tVb--V1mk1PyBqlZz9pK-b0-7l9dMcDxAP0pe8b2vLXrxfezadeVc0XR24ne/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgtivS7tQs70KUWQkIdIqa73HrHAYxaa6B8gfeKbx0Vp0olslfb5tYmbEqHQdUWAiJ/exec";
 
 function loadSlots() {
   const container = document.getElementById("slots");
@@ -54,6 +54,13 @@ function renderSlots(data) {
   const container = document.getElementById("slots");
   container.innerHTML = "";
 
+  // Ak nám server vrátil chybu namiesto zoznamu (stane sa pri neúspešnom uložení)
+  if (data.success === false) {
+    alert("Chyba: " + data.message);
+    loadSlots();
+    return;
+  }
+
   data.forEach(slot => {
     const div = document.createElement("div");
     div.className = "slot " + (slot.status === "obsadené" ? "obsadene" : "volne");
@@ -65,7 +72,7 @@ function renderSlots(data) {
       div.textContent = slot.time;
 
       div.onclick = () => {
-        if (div.querySelector('input')) return; // prevencia duplicity
+        if (div.querySelector('input')) return;
         div.innerHTML = "";
 
         const title = document.createElement("div");
@@ -97,31 +104,44 @@ function renderSlots(data) {
           btn.disabled = true;
           btn.textContent = "Odosielam...";
 
-          // Posielanie dát na Google Apps Script upravené pre obídenie CORS
-          fetch(SCRIPT_URL, {
-            method: "POST",
-            mode: "no-cors", 
-            headers: {
-              "Content-Type": "text/plain"
-            },
-            body: JSON.stringify({ time: slot.time, name: name, email: email })
-          })
-          .then(() => {
-            loadSlots();
-          })
-          .catch(err => {
-            alert("Chyba spojenia so serverom.");
+          // 🔒 ODOSLANIE REZERVÁCIE CEZ JSONP (Bezpečné obídenie CORS a 401)
+          const oldSaveScript = document.getElementById("jsonp-save-script");
+          if (oldSaveScript) oldSaveScript.remove();
+
+          window.handleSaveResponse = function(result) {
+            if (result.success) {
+              alert("Rezervácia prebehla úspešne!");
+              loadSlots();
+            } else {
+              alert("Chyba: " + result.message);
+              loadSlots();
+            }
+          };
+
+          const saveScript = document.createElement("script");
+          saveScript.id = "jsonp-save-script";
+          
+          // Parametre zakódujeme priamo do URL adresy (GET požiadavka)
+          saveScript.src = SCRIPT_URL + 
+            "?time=" + encodeURIComponent(slot.time) + 
+            "&name=" + encodeURIComponent(name) + 
+            "&email=" + encodeURIComponent(email) + 
+            "&callback=handleSaveResponse";
+
+          saveScript.onerror = function() {
+            alert("Chyba pri komunikácii so serverom.");
             btn.disabled = false;
             btn.textContent = "Uložiť";
-          });
-        }; // <-- Tu končí btn.onclick
+          };
 
-        // Prvky sa musia pridať do políčka (div) až PO definovaní tlačidla
+          document.body.appendChild(saveScript);
+        };
+
         div.appendChild(title);
         div.appendChild(inputName);
         div.appendChild(inputEmail);
         div.appendChild(btn);
-      }; // <-- Tu končí div.onclick
+      };
     }
     container.appendChild(div);
   });
