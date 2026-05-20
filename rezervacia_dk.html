@@ -1,207 +1,155 @@
 <!DOCTYPE html>
 <html lang="sk">
 <head>
-
 <meta charset="UTF-8">
-
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
-
-<title>Rezervácia</title>
-
+<title>Rezervácia rozohrávok DK</title>
 <style>
-
-body{
-  font-family:Arial;
-  max-width:800px;
-  margin:auto;
-  padding:20px;
-}
-
-table{
-  border-collapse:collapse;
-  width:100%;
-}
-
-th,td{
-  border:1px solid #ccc;
-  padding:8px;
-  text-align:center;
-}
-
-th{
-  background:#f0f0f0;
-  position:sticky;
-  top:0;
-}
-
-input{
-  width:95%;
-  height:34px;
-}
-
-button{
-  margin-top:4px;
-  padding:6px 10px;
-}
-
-.free{
-  background:#eaffea;
-}
-
-.taken{
-  background:#ffdede;
-}
-
+  body { font-family: Arial; max-width: 400px; margin: auto; padding: 20px; }
+  input { width: 95%; height: 25px; font-size: 14px; padding: 5px; margin: 4px 0; box-sizing: border-box; }
+  button { margin-top: 5px; }
+  .slot { padding: 3px; margin: 3px 0; font-size: 13px; border: 1px solid #ccc; }
+  .slot.volne { background: #d4eaed; cursor: pointer; }
+  .slot.obsadene { background: #f8d7da; cursor: not-allowed; }
+  .loading { text-align: center; color: #666; font-style: italic; }
 </style>
 </head>
 <body>
 
-<h2>Rezervácia rozohrávok</h2>
+<h2>Rezervácia rozohrávok DK</h2>
 
-<table id="grid"></table>
+<div id="slots" class="loading">Načítavam voľné termíny...</div>
 
 <script>
+// 🔥 Vymeň túto URL za svoju URL adresu z Google Apps Scriptu (v úvodzovkách)
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwvx88Lz0EHI4GJNi-tbTmj_5PHL61hs-oe-t28QC2C63Qrqf3rHpPeOanAyWkEE11s/exec";
 
-const API_URL =
-"https://script.google.com/macros/s/AKfycbyRz0UFyO_f3fHAoMkGqMqDVt43SuWSy-aOfmhm0vmUO56lJyBOEfRAOMFfSeQZmVcl/exec";
+function loadSlots() {
+  const container = document.getElementById("slots");
+  container.innerHTML = "<div class='loading'>Aktualizujem dáta...</div>";
 
+  // Vymažeme starý pokus o skript, ak existuje
+  const oldScript = document.getElementById("jsonp-script");
+  if (oldScript) oldScript.remove();
 
+  // Vytvoríme globálnu funkciu, ktorú Google skript zavolá, keď vráti dáta
+  window.handleGoogleData = function(data) {
+    renderSlots(data);
+  };
 
-async function loadSlots(){
+  // Vytvoríme script element s parametrom ?callback=handleGoogleData
+  const script = document.createElement("script");
+  script.id = "jsonp-script";
+  script.src = SCRIPT_URL + "?callback=handleGoogleData";
 
-  const res =
-    await fetch(API_URL);
+  // Ak by náhodou server spadol
+  script.onerror = function() {
+    container.innerHTML = "Chyba pri načítaní dát zo servera.";
+  };
 
-  const data =
-    await res.json();
-
-  buildGrid(data);
+  // Vložením do stránky sa požiadavka reálne odošle bez CORS obmedzení
+  document.body.appendChild(script);
 }
+  
+function renderSlots(data) {
+  const container = document.getElementById("slots");
+  container.innerHTML = "";
 
-
-
-function buildGrid(data){
-
-  const table =
-    document.getElementById("grid");
-
-  table.innerHTML = `
-    <tr>
-      <th>Čas</th>
-      <th>Meno</th>
-      <th>Email</th>
-    </tr>
-  `;
-
-
-  data.forEach(slot => {
-
-    const tr =
-      document.createElement("tr");
-
-
-    tr.innerHTML += `
-      <td>${slot.time}</td>
-    `;
-
-
-    // obsadené
-    if(slot.name){
-
-      tr.innerHTML += `
-        <td class="taken">
-          Obsadené
-        </td>
-
-        <td class="taken">
-          ---
-        </td>
-      `;
-
-    }
-
-    // voľné
-    else{
-
-      tr.innerHTML += `
-
-        <td class="free">
-          <input
-            id="name_${slot.time}"
-            placeholder="Meno">
-        </td>
-
-        <td class="free">
-
-          <input
-            id="email_${slot.time}"
-            placeholder="Email">
-
-          <button onclick="
-            reserve('${slot.time}')
-          ">
-            Rezervovať
-          </button>
-
-        </td>
-      `;
-    }
-
-    table.appendChild(tr);
-  });
-}
-
-
-
-// rezervácia
-async function reserve(time){
-
-  const name =
-    document.getElementById(
-      "name_" + time
-    ).value;
-
-
-  const email =
-    document.getElementById(
-      "email_" + time
-    ).value;
-
-
-  if(!name || !email){
-
-    alert("Vyplň údaje");
+  // Ak nám server vrátil chybu namiesto zoznamu (stane sa pri neúspešnom uložení)
+  if (data.success === false) {
+    alert("Chyba: " + data.message);
+    loadSlots();
     return;
   }
 
+  data.forEach(slot => {
+    const div = document.createElement("div");
+    div.className = "slot " + (slot.status === "obsadené" ? "obsadene" : "volne");
 
-  const res =
-    await fetch(API_URL,{
+    if (slot.status === "obsadené") {
+      div.textContent = slot.time + " - obsadené";
+    } 
+    else {
+      div.textContent = slot.time;
 
-      method:"POST",
+      div.onclick = () => {
+        if (div.querySelector('input')) return;
+        div.innerHTML = "";
 
-      body:JSON.stringify({
+        const title = document.createElement("div");
+        title.textContent = slot.time;
 
-        time,
-        name,
-        email
+        const inputName = document.createElement("input");
+        inputName.placeholder = "Meno";
 
-      })
-    });
+        const inputEmail = document.createElement("input");
+        inputEmail.placeholder = "Email";
 
+        inputName.onclick = (e) => e.stopPropagation();
+        inputEmail.onclick = (e) => e.stopPropagation();
 
-  const result =
-    await res.json();
+        const btn = document.createElement("button");
+        btn.textContent = "Uložiť";
 
-  alert(result.message);
+        btn.onclick = (e) => {
+          e.stopPropagation();
 
-  loadSlots();
+          const name = inputName.value.trim();
+          const email = inputEmail.value.trim();
+
+          if (!name || !email) {
+            alert("Vyplň meno aj email");
+            return;
+          }
+
+          btn.disabled = true;
+          btn.textContent = "Odosielam...";
+
+          // 🔒 ODOSLANIE REZERVÁCIE CEZ JSONP (Bezpečné obídenie CORS a 401)
+          const oldSaveScript = document.getElementById("jsonp-save-script");
+          if (oldSaveScript) oldSaveScript.remove();
+
+          window.handleSaveResponse = function(result) {
+            if (result.success) {
+              alert("Rezervácia prebehla úspešne!");
+              loadSlots();
+            } else {
+              alert("Chyba: " + result.message);
+              loadSlots();
+            }
+          };
+
+          const saveScript = document.createElement("script");
+          saveScript.id = "jsonp-save-script";
+          
+          // Parametre zakódujeme priamo do URL adresy (GET požiadavka)
+          saveScript.src = SCRIPT_URL + 
+            "?time=" + encodeURIComponent(slot.time) + 
+            "&name=" + encodeURIComponent(name) + 
+            "&email=" + encodeURIComponent(email) + 
+            "&callback=handleSaveResponse";
+
+          saveScript.onerror = function() {
+            alert("Chyba pri komunikácii so serverom.");
+            btn.disabled = false;
+            btn.textContent = "Uložiť";
+          };
+
+          document.body.appendChild(saveScript);
+        };
+
+        div.appendChild(title);
+        div.appendChild(inputName);
+        div.appendChild(inputEmail);
+        div.appendChild(btn);
+      };
+    }
+    container.appendChild(div);
+  });
 }
 
-
+// Načítanie pri štarte
 loadSlots();
-
 </script>
+
 </body>
 </html>
